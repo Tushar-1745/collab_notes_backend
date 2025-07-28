@@ -1,27 +1,26 @@
-# Stage 1: Build TypeScript
-FROM node:18 AS builder
-
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm install
-
-COPY . .
-
-# Make tsc executable to avoid permission issues
-RUN chmod +x ./node_modules/.bin/tsc
-
-RUN npm run build
-
-# Stage 2: Run built app
+# Use official Node.js image as base
 FROM node:18
 
+# Set working directory
 WORKDIR /app
 
-COPY --from=builder /app/dist ./dist
+# Copy package.json and lock file first (for caching)
 COPY package*.json ./
-RUN npm ci --omit=dev
 
+# Install dependencies
+RUN npm install
+
+# Copy the rest of the code
+COPY . .
+
+# Generate Prisma client
+RUN npx prisma generate
+
+# Build TypeScript
+RUN npm run build
+
+# Expose the port your app runs on
 EXPOSE 4000
 
-CMD ["node", "dist/index.js"]
+# Start the app
+CMD ["npm", "start"]
