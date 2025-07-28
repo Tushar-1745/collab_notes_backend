@@ -1,41 +1,36 @@
-# -------- Base Image --------
-FROM node:18 as builder
+# ---------- Base Builder Image ----------
+FROM node:18-alpine AS builder
 
-# -------- Set Working Directory --------
+# Create app directory
 WORKDIR /app
 
-# -------- Copy Files --------
+# Install app dependencies
 COPY package*.json ./
-COPY prisma ./prisma
-COPY tsconfig.json ./
-COPY .env ./
-
-# -------- Install Dependencies --------
 RUN npm install
 
-# -------- Prisma Generate --------
+# Copy the full app source
+COPY . .
+
+# Generate Prisma client
 RUN npx prisma generate
 
-# -------- Copy Source Code --------
-COPY src ./src
-
-# -------- Build TypeScript --------
+# Build the TypeScript code
 RUN npm run build
 
-# -------- Production Image --------
-FROM node:18 as production
+# ---------- Final Production Image ----------
+FROM node:18-alpine
 
-# -------- Set Working Directory --------
 WORKDIR /app
 
-# -------- Copy Files from Builder --------
-COPY --from=builder /app/node_modules ./node_modules
+# Only copy the built app and node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package.json ./package.json
-COPY --from=builder /app/.env ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/.env .env
 
-# -------- Expose Port --------
-EXPOSE 4000
+# Generate Prisma client in production image
+RUN npx prisma generate
 
-# -------- Start App --------
+# Start the app
 CMD ["node", "dist/index.js"]
