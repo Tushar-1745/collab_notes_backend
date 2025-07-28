@@ -32,7 +32,6 @@ const createNote = async (req, res) => {
     const userId = req.user?.id;
     const { title, content, collaborators } = req.body;
     try {
-        // 🔍 Find valid user IDs for collaborator emails
         const collaboratorUsers = await prisma_1.default.user.findMany({
             where: {
                 email: {
@@ -40,15 +39,14 @@ const createNote = async (req, res) => {
                 },
             },
         });
-        // 🧠 Convert found users to [{ userId: string }]
-        const collaboratorData = collaboratorUsers.map(user => ({
+        const collaboratorData = collaboratorUsers.map((user) => ({
             userId: user.id,
         }));
         const newNote = await prisma_1.default.note.create({
             data: {
                 title,
                 content,
-                ownerId: userId, // tells TypeScript it's not undefined
+                ownerId: userId,
                 collaborators: {
                     create: collaboratorData,
                 },
@@ -94,12 +92,11 @@ const getNoteSnapshots = async (req, res) => {
     const { id: noteId } = req.params;
     const userId = req.user?.id;
     try {
-        // Optional: check access control
         const note = await prisma_1.default.note.findUnique({
             where: { id: noteId },
             include: { collaborators: true },
         });
-        if (!note || (note.ownerId !== userId && !note.collaborators.some(c => c.userId === userId))) {
+        if (!note || (note.ownerId !== userId && !note.collaborators.some((c) => c.userId === userId))) {
             return res.status(403).json({ message: 'Unauthorized' });
         }
         const snapshots = await prisma_1.default.noteSnapshot.findMany({
@@ -123,12 +120,10 @@ const updateNote = async (req, res) => {
             where: { id: noteId },
             include: { collaborators: true },
         });
-        if (!note ||
-            (note.ownerId !== userId && !note.collaborators.some((c) => c.userId === userId))) {
+        if (!note || (note.ownerId !== userId && !note.collaborators.some((c) => c.userId === userId))) {
             return res.status(403).json({ message: "Unauthorized" });
         }
         if (note.ownerId === userId) {
-            // Owner can update everything, including collaborators
             const collaboratorUsers = await prisma_1.default.user.findMany({
                 where: {
                     email: {
@@ -145,14 +140,13 @@ const updateNote = async (req, res) => {
                     title,
                     content,
                     collaborators: {
-                        deleteMany: {}, // clear all
+                        deleteMany: {},
                         create: collaboratorData,
                     },
                 },
             });
         }
         else {
-            // Collaborator can only update title & content
             await prisma_1.default.note.update({
                 where: { id: noteId },
                 data: {
@@ -161,7 +155,6 @@ const updateNote = async (req, res) => {
                 },
             });
         }
-        // ✅ Save snapshot after update
         await prisma_1.default.noteSnapshot.create({
             data: {
                 noteId,
@@ -177,8 +170,6 @@ const updateNote = async (req, res) => {
     }
 };
 exports.updateNote = updateNote;
-// controllers/noteController.ts
-// 🔹 Get single note by ID
 const getNoteByIdHandler = async (req, res) => {
     try {
         const noteId = req.params.id;

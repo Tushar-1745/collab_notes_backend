@@ -2,6 +2,14 @@ import { Response } from 'express';
 import prisma from '../utils/prisma';
 import { AuthenticatedRequest } from '../../types/express';
 
+interface Collaborator {
+  userId: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+}
 
 export const getNotes = async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
@@ -32,7 +40,6 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
   const { title, content, collaborators } = req.body;
 
   try {
-    // 🔍 Find valid user IDs for collaborator emails
     const collaboratorUsers = await prisma.user.findMany({
       where: {
         email: {
@@ -41,8 +48,7 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
       },
     });
 
-    // 🧠 Convert found users to [{ userId: string }]
-    const collaboratorData = collaboratorUsers.map(user => ({
+    const collaboratorData = collaboratorUsers.map((user: User) => ({
       userId: user.id,
     }));
 
@@ -50,7 +56,7 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
       data: {
         title,
         content,
-        ownerId: userId!, // tells TypeScript it's not undefined
+        ownerId: userId!,
         collaborators: {
           create: collaboratorData,
         },
@@ -70,7 +76,6 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
     res.status(500).json({ message: 'Failed to create note' });
   }
 };
-
 
 export const deleteNote = async (req: AuthenticatedRequest, res: Response) => {
   const noteId = req.params.id;
@@ -96,19 +101,17 @@ export const deleteNote = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-
 export const getNoteSnapshots = async (req: AuthenticatedRequest, res: Response) => {
   const { id: noteId } = req.params;
   const userId = req.user?.id;
 
   try {
-    // Optional: check access control
     const note = await prisma.note.findUnique({
       where: { id: noteId },
       include: { collaborators: true },
     });
 
-    if (!note || (note.ownerId !== userId && !note.collaborators.some(c => c.userId === userId))) {
+    if (!note || (note.ownerId !== userId && !note.collaborators.some((c: Collaborator) => c.userId === userId))) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
@@ -135,15 +138,11 @@ export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
       include: { collaborators: true },
     });
 
-    if (
-      !note ||
-      (note.ownerId !== userId && !note.collaborators.some((c) => c.userId === userId))
-    ) {
+    if (!note || (note.ownerId !== userId && !note.collaborators.some((c: Collaborator) => c.userId === userId))) {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
     if (note.ownerId === userId) {
-      // Owner can update everything, including collaborators
       const collaboratorUsers = await prisma.user.findMany({
         where: {
           email: {
@@ -152,7 +151,7 @@ export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
         },
       });
 
-      const collaboratorData = collaboratorUsers.map((user) => ({
+      const collaboratorData = collaboratorUsers.map((user: User) => ({
         userId: user.id,
       }));
 
@@ -162,13 +161,12 @@ export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
           title,
           content,
           collaborators: {
-            deleteMany: {}, // clear all
+            deleteMany: {},
             create: collaboratorData,
           },
         },
       });
     } else {
-      // Collaborator can only update title & content
       await prisma.note.update({
         where: { id: noteId },
         data: {
@@ -178,7 +176,6 @@ export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
       });
     }
 
-    // ✅ Save snapshot after update
     await prisma.noteSnapshot.create({
       data: {
         noteId,
@@ -194,10 +191,6 @@ export const updateNote = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
-
-
-// controllers/noteController.ts
-// 🔹 Get single note by ID
 export const getNoteByIdHandler = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const noteId = req.params.id;
@@ -216,7 +209,7 @@ export const getNoteByIdHandler = async (req: AuthenticatedRequest, res: Respons
     }
 
     const isOwner = note.ownerId === userId;
-    const isCollaborator = note.collaborators.some((c) => c.userId === userId);
+    const isCollaborator = note.collaborators.some((c: Collaborator) => c.userId === userId);
 
     if (!isOwner && !isCollaborator) {
       return res.status(403).json({ message: "Forbidden" });
