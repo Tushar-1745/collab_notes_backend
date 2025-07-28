@@ -12,8 +12,8 @@ RUN npm install
 # Copy the full app source
 COPY . .
 
-# Generate Prisma client using npm script instead of npx
-RUN npm run prepare
+# Generate Prisma client with explicit node call
+RUN node_modules/.bin/prisma generate
 
 # Build the TypeScript code
 RUN npm run build
@@ -30,8 +30,8 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/.env .env
 
-# Generate Prisma client using npm script
-RUN npm run prepare
+# Generate Prisma client with explicit node call
+RUN node_modules/.bin/prisma generate
 
 # Start the app
 CMD ["node", "dist/index.js"]
