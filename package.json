@@ -22,8 +22,8 @@
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.8.1",
-    "typescript": "^5.8.3",       // ✅ Moved from devDependencies
-    "prisma": "^6.12.0"           // ✅ Moved from devDependencies
+    "typescript": "^5.8.3",      
+    "prisma": "^6.12.0"           
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
