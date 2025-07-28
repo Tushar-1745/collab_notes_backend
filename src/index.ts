@@ -7,7 +7,7 @@ import noteRoutes from './routes/noteRoutes';
 import userRoutes from './routes/userRoutes';
 import { setupWebSocket } from './websocket/socket';
 
-dotenv.config();
+dotenv.config(); // Load env variables
 
 const app = express();
 const server = http.createServer(app);
@@ -18,11 +18,17 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/notes', noteRoutes); // ✅ Add this
-app.use('/api/users', userRoutes); // ✅ Add this
+app.use('/api/notes', noteRoutes);
+app.use('/api/users', userRoutes);
 
 // WebSocket setup
 setupWebSocket(server);
+
+// Optional global error handler
+app.use((err: any, req: any, res: any, next: any) => {
+  console.error(err.stack);
+  res.status(500).json({ message: "Something went wrong!" });
+});
 
 // Start server
 const PORT = process.env.PORT || 4000;
