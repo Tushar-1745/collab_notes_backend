@@ -12,15 +12,15 @@ dotenv.config(); // Load environment variables
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Allowed Origins for CORS
+// ✅ Allow Vercel frontend and localhost
 const allowedOrigins = [
   'http://localhost:3000',
-  'https://real-time-collaborative-notes-app.vercel.app/' // 🔁 Replace with your actual Vercel frontend domain
+  'https://real-time-collaborative-notes-app.vercel.app'
 ];
 
 // ✅ CORS Middleware
 app.use(cors({
-  origin: (origin, callback) => {
+  origin: function (origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
