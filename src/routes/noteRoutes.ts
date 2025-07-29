@@ -12,7 +12,4 @@ noteRoutes.put('/:id', authenticate, updateNote);
 noteRoutes.get("/:id", authenticate, getNoteByIdHandler);
 
 
-
-
-
 export default noteRoutes;

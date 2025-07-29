@@ -90,6 +90,17 @@ export const deleteNote = async (req: AuthenticatedRequest, res: Response) => {
       return res.status(403).json({ message: 'Unauthorized to delete this note' });
     }
 
+    // ✅ Delete related collaborators
+    await prisma.noteCollaborator.deleteMany({
+      where: { noteId },
+    });
+
+    // ✅ Delete related snapshots
+    await prisma.noteSnapshot.deleteMany({
+      where: { noteId },
+    });
+
+    // ✅ Now delete the note
     await prisma.note.delete({
       where: { id: noteId },
     });
