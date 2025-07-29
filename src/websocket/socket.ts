@@ -38,6 +38,9 @@ export const setupWebSocket = (server: HttpServer) => {
   // Track active users per note
   const activeUsers: Record<string, Set<string>> = {};
 
+  // Track currently typing users per note
+  const typingTimers: Record<string, Record<string, NodeJS.Timeout>> = {};
+
   io.on('connection', (socket: Socket) => {
     const user = (socket as any).user;
     const email = user.email;
@@ -47,21 +50,18 @@ export const setupWebSocket = (server: HttpServer) => {
     socket.on('join-note', (noteId: string) => {
       socket.join(noteId);
 
-      // Add to active users list
+      // Add user to active users list
       if (!activeUsers[noteId]) activeUsers[noteId] = new Set();
       activeUsers[noteId].add(email);
 
-      // Notify all users in the room about active users
+      // Notify all users about the current active users
       io.to(noteId).emit('active-users', Array.from(activeUsers[noteId]));
     });
 
     socket.on('leave-note', (noteId: string) => {
       socket.leave(noteId);
-
-      if (activeUsers[noteId]) {
-        activeUsers[noteId].delete(email);
-        io.to(noteId).emit('active-users', Array.from(activeUsers[noteId]));
-      }
+      activeUsers[noteId]?.delete(email);
+      io.to(noteId).emit('active-users', Array.from(activeUsers[noteId]));
     });
 
     socket.on('disconnecting', () => {
@@ -70,6 +70,10 @@ export const setupWebSocket = (server: HttpServer) => {
         activeUsers[room]?.delete(email);
         io.to(room).emit('active-users', Array.from(activeUsers[room]));
       });
+    });
+
+    socket.on('disconnect', () => {
+      console.log('🔴 Client disconnected:', socket.id);
     });
 
     // Note content update
@@ -82,7 +86,7 @@ export const setupWebSocket = (server: HttpServer) => {
       socket.to(noteId).emit('note-title-update', { title });
     });
 
-    // ✨ NEW: Cursor update event
+    // Cursor update
     socket.on('cursor-update', ({ noteId, email, cursorPosition }) => {
       if (
         typeof noteId === 'string' &&
@@ -90,17 +94,27 @@ export const setupWebSocket = (server: HttpServer) => {
         typeof cursorPosition === 'number'
       ) {
         socket.to(noteId).emit('cursor-update', { email, cursorPosition });
-      } else {
-        console.warn('Invalid cursor-update payload received:', {
-          noteId,
-          email,
-          cursorPosition,
-        });
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log('🔴 Client disconnected:', socket.id);
+    // Typing indicator
+    socket.on('typing', ({ noteId }) => {
+      if (!noteId) return;
+
+      // Emit typing event to others
+      socket.to(noteId).emit('user-typing', email);
+
+      // Reset timer for debounce (clear previous if exists)
+      if (!typingTimers[noteId]) typingTimers[noteId] = {};
+      if (typingTimers[noteId][email]) {
+        clearTimeout(typingTimers[noteId][email]);
+      }
+
+      // Emit stop typing after delay (e.g., 2 seconds)
+      typingTimers[noteId][email] = setTimeout(() => {
+        socket.to(noteId).emit('user-stop-typing', email);
+        delete typingTimers[noteId][email];
+      }, 2000);
     });
   });
 };

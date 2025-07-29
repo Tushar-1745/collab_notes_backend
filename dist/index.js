@@ -11,11 +11,27 @@ const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const noteRoutes_1 = __importDefault(require("./routes/noteRoutes"));
 const userRoutes_1 = __importDefault(require("./routes/userRoutes"));
 const socket_1 = require("./websocket/socket");
-dotenv_1.default.config(); // Load env variables
+dotenv_1.default.config(); // Load environment variables
 const app = (0, express_1.default)();
 const server = http_1.default.createServer(app);
+// ✅ Allow Vercel frontend and localhost
+const allowedOrigins = [
+    'http://localhost:3000',
+    'https://real-time-collaborative-notes-app.vercel.app'
+];
+// ✅ CORS Middleware
+app.use((0, cors_1.default)({
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 // Middleware
-app.use((0, cors_1.default)({ origin: '*', credentials: true }));
 app.use(express_1.default.json());
 // Routes
 app.use('/api/auth', authRoutes_1.default);
@@ -23,7 +39,7 @@ app.use('/api/notes', noteRoutes_1.default);
 app.use('/api/users', userRoutes_1.default);
 // WebSocket setup
 (0, socket_1.setupWebSocket)(server);
-// Optional global error handler
+// Global error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: "Something went wrong!" });
