@@ -14,6 +14,9 @@ RUN npm install
 # Copy full source
 COPY . .
 
+# ✅ Fix Prisma permission issue on Alpine
+RUN chmod +x node_modules/.bin/prisma
+
 # Generate Prisma client
 RUN npx prisma generate
 
