@@ -40,13 +40,33 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
   const { title, content, collaborators } = req.body;
 
   try {
+    // const collaboratorUsers = await prisma.user.findMany({
+    //   where: {
+    //     email: {
+    //       in: collaborators.map((c: any) => c.user.email),
+    //     },
+    //   },
+    // });
+    if (!Array.isArray(collaborators)) {
+      return res.status(400).json({ message: "Collaborators must be an array" });
+    }
+    
+    const collaboratorEmails = collaborators
+      .map((c: any) => c?.user?.email)
+      .filter((email: string | undefined) => typeof email === "string");
+    
+    if (collaboratorEmails.length === 0) {
+      return res.status(400).json({ message: "No valid collaborator emails provided" });
+    }
+    
     const collaboratorUsers = await prisma.user.findMany({
       where: {
         email: {
-          in: collaborators.map((c: any) => c.user.email),
+          in: collaboratorEmails,
         },
       },
     });
+    
 
     const collaboratorData = collaboratorUsers.map((user: User) => ({
       userId: user.id,
