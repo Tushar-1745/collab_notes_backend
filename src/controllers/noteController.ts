@@ -40,37 +40,27 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
   const { title, content, collaborators } = req.body;
 
   try {
-    // const collaboratorUsers = await prisma.user.findMany({
-    //   where: {
-    //     email: {
-    //       in: collaborators.map((c: any) => c.user.email),
-    //     },
-    //   },
-    // });
-    if (!Array.isArray(collaborators)) {
-      return res.status(400).json({ message: "Collaborators must be an array" });
-    }
-    
-    const collaboratorEmails = collaborators
-      .map((c: any) => c?.user?.email)
-      .filter((email: string | undefined) => typeof email === "string");
-    
-    if (collaboratorEmails.length === 0) {
-      return res.status(400).json({ message: "No valid collaborator emails provided" });
-    }
-    
-    const collaboratorUsers = await prisma.user.findMany({
-      where: {
-        email: {
-          in: collaboratorEmails,
-        },
-      },
-    });
-    
+    let collaboratorData: { userId: string; }[] = [];
 
-    const collaboratorData = collaboratorUsers.map((user: User) => ({
-      userId: user.id,
-    }));
+    if (Array.isArray(collaborators) && collaborators.length > 0) {
+      const collaboratorEmails = collaborators.filter(
+        (email: any) => typeof email === "string" && email.includes("@")
+      );
+
+      if (collaboratorEmails.length > 0) {
+        const collaboratorUsers = await prisma.user.findMany({
+          where: {
+            email: {
+              in: collaboratorEmails,
+            },
+          },
+        });
+
+        collaboratorData = collaboratorUsers.map((user: User) => ({
+          userId: user.id,
+        }));
+      }
+    }
 
     const newNote = await prisma.note.create({
       data: {
@@ -78,7 +68,7 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
         content,
         ownerId: userId!,
         collaborators: {
-          create: collaboratorData,
+          create: collaboratorData, // Will be empty array if no valid collaborators
         },
       },
       include: {
@@ -92,10 +82,73 @@ export const createNote = async (req: AuthenticatedRequest, res: Response) => {
 
     res.status(200).json({ note: newNote });
   } catch (err) {
-    console.error('Error creating note:', err);
-    res.status(500).json({ message: 'Failed to create note' });
+    console.error("Error creating note:", err);
+    res.status(500).json({ message: "Failed to create note" });
   }
 };
+
+
+// export const createNote = async (req: AuthenticatedRequest, res: Response) => {
+//   const userId = req.user?.id;
+//   const { title, content, collaborators } = req.body;
+
+//   try {
+//     // const collaboratorUsers = await prisma.user.findMany({
+//     //   where: {
+//     //     email: {
+//     //       in: collaborators.map((c: any) => c.user.email),
+//     //     },
+//     //   },
+//     // });
+//     if (!Array.isArray(collaborators)) {
+//       return res.status(400).json({ message: "Collaborators must be an array" });
+//     }
+    
+//     const collaboratorEmails = collaborators
+//       .map((c: any) => c?.user?.email)
+//       .filter((email: string | undefined) => typeof email === "string");
+    
+//     if (collaboratorEmails.length === 0) {
+//       return res.status(400).json({ message: "No valid collaborator emails provided" });
+//     }
+    
+//     const collaboratorUsers = await prisma.user.findMany({
+//       where: {
+//         email: {
+//           in: collaboratorEmails,
+//         },
+//       },
+//     });
+    
+
+//     const collaboratorData = collaboratorUsers.map((user: User) => ({
+//       userId: user.id,
+//     }));
+
+//     const newNote = await prisma.note.create({
+//       data: {
+//         title,
+//         content,
+//         ownerId: userId!,
+//         collaborators: {
+//           create: collaboratorData,
+//         },
+//       },
+//       include: {
+//         collaborators: {
+//           include: {
+//             user: true,
+//           },
+//         },
+//       },
+//     });
+
+//     res.status(200).json({ note: newNote });
+//   } catch (err) {
+//     console.error('Error creating note:', err);
+//     res.status(500).json({ message: 'Failed to create note' });
+//   }
+// };
 
 export const deleteNote = async (req: AuthenticatedRequest, res: Response) => {
   const noteId = req.params.id;
